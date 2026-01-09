@@ -413,24 +413,36 @@
     </div>
 
     <script>
-        // 🟢 TU URL DE GOOGLE SHEETS ACTUALIZADA 🟢
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbyxbhHY0QeZjkM-QNG42W23yy63sLFlx82Xw9PuEEpztDO0Q16hv0WPsji7gJsVYwvB/exec'; 
+        // 🟢 URL DE GOOGLE SHEETS INTEGRADA 🟢
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzLi_zJmVojpHha9BNsyc5vs9DM-fsE1u7dJ1q7g7GLWx_lbwtSIjOfLlkAtYIoZ8ovnA/exec'; 
 
-        // --- 1. DETECTOR ESPÍA (Dispositivo y Fuente) ---
+        // Variable global para la ubicación
+        let userLocation = "Ubicación no detectada";
+
+        // --- 1. OBTENER INFO ESPÍA Y UBICACIÓN ---
         function getDeviceInfo() {
             const ua = navigator.userAgent;
-            let device = "Escritorio/Laptop";
+            let device = "PC/Laptop";
             if (/android/i.test(ua)) device = "Android";
             else if (/iPad|iPhone|iPod/.test(ua)) device = "iPhone/iOS";
             
-            let source = document.referrer;
-            if(!source) source = "Directo/WhatsApp";
-            else if(source.includes("instagram")) source = "Instagram";
+            let source = document.referrer || "Directo/WhatsApp";
+            if(source.includes("instagram")) source = "Instagram";
             else if(source.includes("facebook")) source = "Facebook";
-            else if(source.includes("google")) source = "Google";
 
             return { device, source };
         }
+
+        // Obtener ubicación por IP al cargar la página (Sin molestar con popups)
+        fetch('https://ipapi.co/json/')
+            .then(res => res.json())
+            .then(data => {
+                if(data.city && data.region) {
+                    userLocation = `${data.city}, ${data.region}`;
+                    console.log("Ubicación detectada:", userLocation);
+                }
+            })
+            .catch(err => console.log("No se pudo obtener ubicación por IP"));
 
         // --- 2. LÓGICA DE REGISTRO ---
         const formReg = document.getElementById('registroForm');
@@ -445,11 +457,15 @@
                 const formData = new FormData(formReg);
                 const data = Object.fromEntries(formData.entries());
                 
-                // Agregamos los datos "espía" y cookies
                 const spyInfo = getDeviceInfo();
                 data.dispositivo = spyInfo.device;
                 data.fuente = spyInfo.source;
-                data.cookies = localStorage.getItem('jg_cookies') || "No Aceptado";
+                data.ubicacion = userLocation; // Enviamos la ubicación capturada
+                
+                // Enviamos el estado de las cookies
+                const cookiesStatus = localStorage.getItem('jg_cookies') || "No Aceptado";
+                data.cookies = cookiesStatus;
+
                 data.action = "registrar"; 
 
                 fetch(scriptURL, { 
@@ -461,6 +477,7 @@
                     if(result.result === 'success'){
                         alert("¡BIENVENIDO! Registro exitoso.");
                         formReg.reset();
+                        switchTab('consulta'); // Cambiar a pestaña de consulta automáticamente
                     } else if (result.result === 'duplicate') {
                         alert("¡Este celular ya está registrado! Ve a la pestaña 'Soy Miembro'.");
                     } else { alert("Error en servidor."); }
@@ -541,7 +558,8 @@
             btnCheck.disabled = true;
             btnCheck.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REGISTRANDO...';
 
-            const data = { action: "checkin", celular: celular };
+            // Enviamos ubicación en el check-in también
+            const data = { action: "checkin", celular: celular, ubicacion: userLocation };
 
             fetch(scriptURL, { 
                 method: 'POST', body: JSON.stringify(data),
@@ -635,7 +653,3 @@
     </script>
 </body>
 </html>
-
-
-
-
